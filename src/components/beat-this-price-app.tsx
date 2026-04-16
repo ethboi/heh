@@ -104,7 +104,10 @@ export function BeatThisPriceApp() {
   const [isChecking, setIsChecking] = useState(false);
 
   const selectedSuggestion = useMemo(
-    () => suggestions.find((suggestion) => String(suggestion.id) === selectedSuggestionId),
+    () =>
+      suggestions.find(
+        (suggestion) => String(suggestion.id) === selectedSuggestionId
+      ),
     [suggestions, selectedSuggestionId]
   );
 
@@ -132,6 +135,14 @@ export function BeatThisPriceApp() {
       currencyMatches,
     };
   }, [form.currentBestPrice, form.currency, result]);
+
+  const resultTone: "win" | "lose" | "neutral" = comparison
+    ? comparison.difference > 0
+      ? "win"
+      : comparison.difference < 0
+        ? "lose"
+        : "neutral"
+    : "neutral";
 
   function updateForm<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -239,16 +250,35 @@ export function BeatThisPriceApp() {
   }
 
   return (
-    <div className="bg-muted/20 py-10">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <TrendingDown className="size-5 text-emerald-600" />
+    <div className="relative isolate min-h-screen overflow-hidden py-8 sm:py-12">
+      <div className="btp-page-bg absolute inset-0 -z-20" />
+      <div className="btp-grid-overlay absolute inset-0 -z-10" />
+      <div className="btp-float pointer-events-none absolute -top-20 left-1/2 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-indigo-400/20 blur-3xl" />
+
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 sm:px-6">
+        <Card className="border-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white shadow-2xl shadow-indigo-900/35 ring-0">
+          <CardHeader className="space-y-3 py-5 sm:py-6">
+            <Badge className="w-fit border border-white/30 bg-white/15 text-white">
+              Smart hotel rate challenger
+            </Badge>
+            <CardTitle className="flex items-center gap-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              <TrendingDown className="size-9 sm:size-10" />
               Beat This Price
             </CardTitle>
+            <CardDescription className="max-w-2xl text-base text-blue-100 sm:text-lg">
+              Spot overpriced hotel deals in seconds. We compare your current
+              offer against live trivago rates so you can book with confidence.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card className="rounded-2xl border border-indigo-100/80 bg-card/92 shadow-[0_18px_48px_-26px_rgba(37,99,235,0.45)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_60px_-26px_rgba(37,99,235,0.58)]">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Check your stay price
+            </CardTitle>
             <CardDescription>
-              Enter your booking details and we&apos;ll check trivago for a lower rate.
+              Enter your booking details and we&apos;ll look for a better trivago deal.
             </CardDescription>
           </CardHeader>
 
@@ -324,49 +354,54 @@ export function BeatThisPriceApp() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="current-best-price">
-                    <DollarSign className="size-4" />
-                    Your current best price
-                  </Label>
-                  <Input
-                    id="current-best-price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    value={form.currentBestPrice}
-                    onChange={(event) =>
-                      updateForm("currentBestPrice", event.target.value)
-                    }
-                    placeholder="240"
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="current-best-price">
+                      <DollarSign className="size-4" />
+                      Your current best price
+                    </Label>
+                    <span className="text-xs text-muted-foreground">Currency</span>
+                  </div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_7.25rem] gap-2">
+                    <Input
+                      id="current-best-price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      value={form.currentBestPrice}
+                      onChange={(event) =>
+                        updateForm("currentBestPrice", event.target.value)
+                      }
+                      placeholder="240"
+                    />
+                    <Select
+                      value={form.currency}
+                      onValueChange={(value) => {
+                        if (value && currencies.includes(value as SupportedCurrency)) {
+                          updateForm("currency", value as SupportedCurrency);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencies.map((currency) => (
+                          <SelectItem key={currency} value={currency}>
+                            {currency}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
-              <div className="max-w-[220px] space-y-2">
-                <Label>Currency</Label>
-                <Select
-                  value={form.currency}
-                  onValueChange={(value) => {
-                    if (value && currencies.includes(value as SupportedCurrency)) {
-                      updateForm("currency", value as SupportedCurrency);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((currency) => (
-                      <SelectItem key={currency} value={currency}>
-                        {currency}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isSearching || isChecking}>
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-700/30 transition-all duration-300 hover:from-blue-500 hover:via-indigo-500 hover:to-blue-500 hover:shadow-indigo-700/40"
+                disabled={isSearching || isChecking}
+              >
                 <Search className="size-4" />
                 {isSearching
                   ? "Searching hotel..."
@@ -378,8 +413,8 @@ export function BeatThisPriceApp() {
           </CardContent>
 
           {error ? (
-            <CardFooter>
-              <Alert variant="destructive">
+            <CardFooter className="border-t border-rose-200/70 bg-rose-50/80">
+              <Alert variant="destructive" className="border-rose-200/60 bg-rose-50">
                 <TrendingUp className="size-4" />
                 <AlertTitle>Could not complete check</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
@@ -389,10 +424,13 @@ export function BeatThisPriceApp() {
         </Card>
 
         {suggestions.length > 0 ? (
-          <Card size="sm">
+          <Card
+            size="sm"
+            className="rounded-2xl border border-indigo-100/70 bg-card/92 shadow-[0_12px_35px_-24px_rgba(37,99,235,0.45)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_46px_-24px_rgba(37,99,235,0.52)]"
+          >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Hotel className="size-4" />
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <Hotel className="size-4 text-indigo-600" />
                 Matching hotels
               </CardTitle>
               <CardDescription>
@@ -434,6 +472,7 @@ export function BeatThisPriceApp() {
               <Button
                 type="button"
                 variant="outline"
+                className="border-indigo-200 bg-white/70 hover:bg-indigo-50"
                 onClick={() =>
                   void runPriceCheck(selectedSuggestion?.id, selectedSuggestion?.ns)
                 }
@@ -447,11 +486,24 @@ export function BeatThisPriceApp() {
         ) : null}
 
         {result ? (
-          <Card>
+          <Card
+            className={`rounded-2xl border backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 ${
+              resultTone === "win"
+                ? "border-emerald-200/90 bg-emerald-50/85 shadow-[0_14px_40px_-24px_rgba(5,150,105,0.45)]"
+                : resultTone === "lose"
+                  ? "border-rose-200/90 bg-rose-50/85 shadow-[0_14px_40px_-24px_rgba(225,29,72,0.42)]"
+                  : "border-indigo-100/80 bg-card/92 shadow-[0_14px_40px_-24px_rgba(37,99,235,0.4)]"
+            }`}
+          >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
+              <CardTitle className="flex flex-wrap items-center gap-2 text-xl font-semibold">
                 <DollarSign className="size-5" />
                 Price comparison
+                {resultTone === "win" ? (
+                  <Badge className="bg-emerald-600 text-white">Trivago wins</Badge>
+                ) : resultTone === "lose" ? (
+                  <Badge className="bg-rose-600 text-white">Your deal wins</Badge>
+                ) : null}
               </CardTitle>
               <CardDescription>
                 {result.totalResults} trivago offer(s) returned for this stay.
@@ -461,24 +513,32 @@ export function BeatThisPriceApp() {
               {result.bestDeal ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge>{result.bestDeal.accommodation_name}</Badge>
-                    <Badge variant="secondary">{result.bestDeal.currency || "N/A"}</Badge>
+                    <Badge variant="secondary" className="bg-white/80">
+                      {result.bestDeal.accommodation_name}
+                    </Badge>
+                    <Badge variant="outline" className="bg-white/70">
+                      {result.bestDeal.currency || "N/A"}
+                    </Badge>
                     {comparison ? (
                       comparison.difference > 0 ? (
-                        <Badge>
+                        <Badge className="bg-emerald-600 text-white">
                           <TrendingDown className="size-3" />
                           Better by {formatDelta(comparison.difference)}
                         </Badge>
-                      ) : (
-                        <Badge variant="destructive">
+                      ) : comparison.difference < 0 ? (
+                        <Badge className="bg-rose-600 text-white">
                           <TrendingUp className="size-3" />
                           Higher by {formatDelta(comparison.difference)}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-white/70">
+                          Same price as your deal
                         </Badge>
                       )
                     ) : null}
                   </div>
 
-                  <div className="grid gap-3 rounded-lg border p-3 md:grid-cols-2">
+                  <div className="grid gap-3 rounded-xl border border-white/70 bg-white/70 p-3 md:grid-cols-2">
                     <div>
                       <p className="text-sm text-muted-foreground">Your best price</p>
                       <p className="text-lg font-semibold">
@@ -496,10 +556,10 @@ export function BeatThisPriceApp() {
                   </div>
 
                   {!comparison?.currencyMatches ? (
-                    <Alert>
+                    <Alert className="border-amber-200/70 bg-amber-50/90 text-amber-900">
                       <TrendingUp className="size-4" />
                       <AlertTitle>Currency mismatch</AlertTitle>
-                      <AlertDescription>
+                      <AlertDescription className="text-amber-800/90">
                         Trivago returned {result.bestDeal.currency}. Compare manually
                         against your {form.currency} price.
                       </AlertDescription>
@@ -518,6 +578,7 @@ export function BeatThisPriceApp() {
                     <Button
                       type="button"
                       variant="outline"
+                      className="border-indigo-200 bg-white/70 hover:bg-indigo-50"
                       onClick={() =>
                         window.open(result.dealUrl ?? "", "_blank", "noopener,noreferrer")
                       }
@@ -528,10 +589,10 @@ export function BeatThisPriceApp() {
                   ) : null}
                 </>
               ) : (
-                <Alert>
+                <Alert className="border-amber-200/70 bg-amber-50/90 text-amber-900">
                   <TrendingUp className="size-4" />
                   <AlertTitle>No available deal found</AlertTitle>
-                  <AlertDescription>
+                  <AlertDescription className="text-amber-800/90">
                     Try changing your dates or selecting a different hotel suggestion.
                   </AlertDescription>
                 </Alert>
@@ -539,6 +600,10 @@ export function BeatThisPriceApp() {
             </CardContent>
           </Card>
         ) : null}
+
+        <footer className="pb-2 text-center text-xs text-muted-foreground">
+          Powered by <span className="font-semibold text-indigo-700">trivago</span>
+        </footer>
       </div>
     </div>
   );
