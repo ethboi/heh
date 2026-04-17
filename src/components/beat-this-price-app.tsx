@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TrivagoLogo } from "@/components/trivago-logo";
 import {
   parsePriceValue,
   type HotelSuggestion,
@@ -266,10 +267,9 @@ export function BeatThisPriceApp() {
                 href="https://www.trivago.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+                className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
               >
-                Powered by <span className="font-bold">trivago</span>
-                <ExternalLink className="size-3.5" />
+                Powered by <TrivagoLogo className="inline-block" />
               </a>
             </div>
             <CardTitle className="flex items-center gap-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -614,7 +614,7 @@ export function BeatThisPriceApp() {
 
 
         <footer className="pb-2 text-center text-xs text-muted-foreground">
-          Powered by <span className="font-semibold text-indigo-700">trivago</span>
+          Powered by <TrivagoLogo className="inline-block align-middle" />
         </footer>
       </div>
     </div>
