@@ -790,41 +790,45 @@ export function BeatThisPriceApp() {
 
         <Card className="rounded-2xl border border-indigo-100/80 bg-card/92 shadow-[0_18px_48px_-26px_rgba(37,99,235,0.45)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_60px_-26px_rgba(37,99,235,0.58)]">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Check your stay price
-            </CardTitle>
-            <CardDescription>
-              Use the AI Assistant or enter details manually to find a better trivago deal.
-            </CardDescription>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">
+                  Check your stay price
+                </CardTitle>
+                <CardDescription>
+                  Use the AI Assistant or enter details manually to find a better trivago deal.
+                </CardDescription>
+              </div>
+              <div className="inline-flex shrink-0 rounded-lg border border-indigo-100 bg-indigo-50/80 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveInputMode("ai")}
+                  className={cn(
+                    "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                    activeInputMode === "ai"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-indigo-500 hover:bg-white/60"
+                  )}
+                >
+                  AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveInputMode("manual")}
+                  className={cn(
+                    "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                    activeInputMode === "manual"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-indigo-500 hover:bg-white/60"
+                  )}
+                >
+                  Manual
+                </button>
+              </div>
+            </div>
           </CardHeader>
 
           <CardContent className="space-y-6">
-            <div className="inline-flex w-full rounded-xl border border-indigo-100 bg-indigo-50/80 p-1 sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setActiveInputMode("ai")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                  activeInputMode === "ai"
-                    ? "bg-white text-indigo-700 shadow-sm"
-                    : "text-indigo-600 hover:bg-white/60"
-                )}
-              >
-                AI Assistant
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveInputMode("manual")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                  activeInputMode === "manual"
-                    ? "bg-white text-indigo-700 shadow-sm"
-                    : "text-indigo-600 hover:bg-white/60"
-                )}
-              >
-                Manual Form
-              </button>
-            </div>
 
             {activeInputMode === "ai" ? (
               <div className="space-y-4 rounded-xl border border-indigo-100/80 bg-indigo-50/35 p-3">
