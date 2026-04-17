@@ -8,6 +8,7 @@ import {
   DollarSign,
   ExternalLink,
   Hotel,
+  Loader2,
   Search,
   TrendingDown,
   TrendingUp,
@@ -861,7 +862,8 @@ export function BeatThisPriceApp() {
 
                   {isAiBusy ? (
                     <div className="flex justify-start">
-                      <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-slate-100 px-3 py-2 text-sm text-slate-700 shadow-sm">
+                      <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-bl-md bg-slate-100 px-3 py-2 text-sm text-slate-700 shadow-sm">
+                        <Loader2 className="size-4 animate-spin text-indigo-600" />
                         {isSearching || isChecking
                           ? "Searching trivago..."
                           : "Parsing details..."}
