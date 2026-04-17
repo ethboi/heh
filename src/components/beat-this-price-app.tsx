@@ -91,6 +91,7 @@ type ChatResultCardData = {
   hotelName: string;
   userPrice: string;
   currency: SupportedCurrency;
+  userCurrency: SupportedCurrency;
   priceType: PriceType;
   nights: number;
   result: CheckPriceResponse;
@@ -410,11 +411,11 @@ function ChatSearchResultCard({ card }: { card: ChatResultCardData }) {
                   Your price ({card.priceType === "per_night" ? "per night" : "total"})
                 </p>
                 <p className="text-base font-bold">
-                  {card.currency} {card.userPrice}
+                  {card.userCurrency} {card.userPrice}
                 </p>
                 {card.priceType === "per_night" && card.nights > 1 && card.comparison ? (
                   <p className="text-xs text-muted-foreground">
-                    {card.currency} {card.comparison.userPriceTotal.toFixed(2)} total ({card.nights} nights)
+                    {card.userCurrency} {card.comparison.userPriceTotal.toFixed(2)} total ({card.nights} nights)
                   </p>
                 ) : null}
               </div>
@@ -443,12 +444,12 @@ function ChatSearchResultCard({ card }: { card: ChatResultCardData }) {
               </p>
             ) : null}
 
-            {!card.comparison?.currencyMatches ? (
+            {card.userCurrency !== card.currency ? (
               <div className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 <span className="shrink-0 font-semibold">⚠ Currency note:</span>
                 <span>
-                  Trivago returned prices in {bestDeal.currency || "N/A"} but yours is in {card.currency}.
-                  Try entering your price in {bestDeal.currency || "the hotel's local currency"} for an accurate comparison.
+                  You entered your price in {card.userCurrency} but trivago prices are in {card.currency}.
+                  The comparison assumes both values are in {card.currency}. For accuracy, re-enter your price in {card.currency}.
                 </span>
               </div>
             ) : null}
@@ -633,19 +634,24 @@ export function BeatThisPriceApp() {
 
       setResult(checkPayload);
 
+      // Use trivago's actual currency for the comparison
+      const trivagoCurrency = (checkPayload.bestDeal?.currency ?? normalizedInput.currency) as SupportedCurrency;
+      const numNights = countNights(normalizedInput.checkIn, normalizedInput.checkOut);
+
       return {
         hotelName: checkPayload.bestDeal?.accommodation_name ?? firstSuggestion.location,
         userPrice: normalizedInput.currentBestPrice,
-        currency: normalizedInput.currency,
+        currency: trivagoCurrency,
+        userCurrency: normalizedInput.currency,
         priceType: normalizedInput.priceType,
-        nights: countNights(normalizedInput.checkIn, normalizedInput.checkOut),
+        nights: numNights,
         result: checkPayload,
         comparison: buildPriceComparison(
           normalizedInput.currentBestPrice,
-          normalizedInput.currency,
+          trivagoCurrency,
           checkPayload.bestDeal,
           normalizedInput.priceType,
-          countNights(normalizedInput.checkIn, normalizedInput.checkOut)
+          numNights
         ),
       };
     } finally {

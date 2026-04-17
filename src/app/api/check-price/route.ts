@@ -87,7 +87,6 @@ export async function POST(request: Request) {
         arrival: checkIn,
         departure: checkOut,
         adults,
-        currency,
       }
     );
 
