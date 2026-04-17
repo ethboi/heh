@@ -306,9 +306,19 @@ export async function POST(request: Request) {
       .trim();
 
     const parsed = parseModelResponse(rawText);
-    const extracted = parsed?.extracted ?? {};
+    const rawExtracted = parsed?.extracted ?? {};
+
+    // Remove undefined keys so they don't overwrite previously collected values
+    const extracted: CollectedData = {};
+    for (const [key, value] of Object.entries(rawExtracted)) {
+      if (value !== undefined && value !== null) {
+        (extracted as Record<string, unknown>)[key] = value;
+      }
+    }
+
     const mergedData = { ...collectedData, ...extracted };
     const complete = isComplete(mergedData);
+
 
     const missing = missingFields(mergedData);
 
