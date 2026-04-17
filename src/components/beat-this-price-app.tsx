@@ -876,13 +876,13 @@ export function BeatThisPriceApp() {
                     value={chatInput}
                     onChange={(event) => setChatInput(event.target.value)}
                     placeholder="e.g. Hilton Berlin, May 1-3, 2 adults, I found it for 240 EUR"
-                    className="bg-white"
+                    className="h-12 bg-white text-base"
                     disabled={isAiBusy}
                   />
                   <Button
                     type="submit"
                     disabled={isAiBusy || chatInput.trim().length === 0}
-                    className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500"
+                    className="h-12 shrink-0 bg-indigo-600 text-base text-white hover:bg-indigo-500"
                   >
                     {isSearching || isChecking
                       ? "Searching..."
@@ -892,7 +892,7 @@ export function BeatThisPriceApp() {
                   </Button>
                 </form>
 
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="flex flex-wrap gap-1.5">
                   {requiredAiFields.map(({ key, label }) => {
                     const fieldValue = collectedData[key];
                     const isMissing = missingFieldSet.has(key);
@@ -901,16 +901,16 @@ export function BeatThisPriceApp() {
                       <div
                         key={key}
                         className={cn(
-                          "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs",
+                          "flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px]",
                           isMissing
-                            ? "border-slate-200 bg-slate-100/80 text-slate-500"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            ? "border-slate-200 bg-slate-100/80 text-slate-400"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
                         )}
                       >
                         {isMissing ? (
-                          <Circle className="size-3.5" />
+                          <Circle className="size-2.5" />
                         ) : (
-                          <CheckCircle2 className="size-3.5" />
+                          <CheckCircle2 className="size-2.5" />
                         )}
                         <span className="font-medium">{label}:</span>
                         <span className="truncate">
