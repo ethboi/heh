@@ -46,6 +46,8 @@ import {
   type TrivagoAccommodation,
 } from "@/lib/trivago";
 
+type PriceType = "per_night" | "total";
+
 type FormState = {
   hotelName: string;
   destination: string;
@@ -54,6 +56,7 @@ type FormState = {
   adults: number;
   currentBestPrice: string;
   currency: SupportedCurrency;
+  priceType: PriceType;
 };
 
 type SearchHotelResponse = {
@@ -75,8 +78,12 @@ type ChatRole = "user" | "assistant";
 
 type PriceComparison = {
   userPrice: number;
+  userPriceTotal: number;
   trivagoPrice: number;
+  trivagoPricePerNight: number;
   difference: number;
+  nights: number;
+  priceType: PriceType;
   currencyMatches: boolean;
 };
 
@@ -84,6 +91,8 @@ type ChatResultCardData = {
   hotelName: string;
   userPrice: string;
   currency: SupportedCurrency;
+  priceType: PriceType;
+  nights: number;
   result: CheckPriceResponse;
   comparison: PriceComparison | null;
 };
@@ -102,6 +111,7 @@ type CollectedData = {
   adults?: number;
   currentBestPrice?: string;
   currency?: SupportedCurrency;
+  priceType?: PriceType;
 };
 
 type PriceCheckFormInput = Pick<
@@ -134,6 +144,7 @@ const requiredAiFields: Array<{ key: keyof CollectedData; label: string }> = [
   { key: "adults", label: "Adults" },
   { key: "currentBestPrice", label: "Best price" },
   { key: "currency", label: "Currency" },
+  { key: "priceType", label: "Price type" },
 ];
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -148,26 +159,47 @@ function formatDelta(value: number) {
   return Math.abs(value).toFixed(2);
 }
 
+function countNights(checkIn: string, checkOut: string): number {
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return diff > 0 ? diff : 1;
+}
+
 function buildPriceComparison(
   userPriceText: string,
   currency: SupportedCurrency,
-  bestDeal: TrivagoAccommodation | null
+  bestDeal: TrivagoAccommodation | null,
+  priceType: PriceType = "total",
+  nights: number = 1
 ): PriceComparison | null {
   if (!bestDeal) {
     return null;
   }
 
   const userPrice = Number.parseFloat(userPriceText);
-  const trivagoPrice = parsePriceValue(bestDeal.price_per_stay ?? bestDeal.price_per_night);
+  const trivagoTotalPrice = parsePriceValue(bestDeal.price_per_stay);
+  const trivagoPerNight = parsePriceValue(bestDeal.price_per_night);
 
-  if (!Number.isFinite(userPrice) || trivagoPrice === null) {
+  // Determine trivago total: prefer price_per_stay, else derive from per_night
+  const trivagoTotal = trivagoTotalPrice ?? (trivagoPerNight !== null ? trivagoPerNight * nights : null);
+  const trivagoNightly = trivagoPerNight ?? (trivagoTotalPrice !== null ? trivagoTotalPrice / nights : null);
+
+  if (!Number.isFinite(userPrice) || trivagoTotal === null || trivagoNightly === null) {
     return null;
   }
 
+  // Normalize user price to total for comparison
+  const userPriceTotal = priceType === "per_night" ? userPrice * nights : userPrice;
+
   return {
     userPrice,
-    trivagoPrice,
-    difference: userPrice - trivagoPrice,
+    userPriceTotal,
+    trivagoPrice: trivagoTotal,
+    trivagoPricePerNight: trivagoNightly,
+    difference: userPriceTotal - trivagoTotal,
+    nights,
+    priceType,
     currencyMatches: !bestDeal.currency || bestDeal.currency.toUpperCase().includes(currency) || currency.includes(bestDeal.currency.toUpperCase()),
   };
 }
@@ -180,6 +212,7 @@ type SearchInput = {
   adults: number;
   currentBestPrice: string;
   currency: SupportedCurrency;
+  priceType: PriceType;
 };
 
 function normalizeSearchInput(data: CollectedData): SearchInput | null {
@@ -217,6 +250,7 @@ function normalizeSearchInput(data: CollectedData): SearchInput | null {
     adults,
     currentBestPrice,
     currency,
+    priceType: data.priceType ?? "per_night",
   };
 }
 
@@ -250,6 +284,10 @@ function hasCollectedField(data: CollectedData, key: keyof CollectedData): boole
     return Boolean(data.currency && currencies.includes(data.currency));
   }
 
+  if (key === "priceType") {
+    return data.priceType === "per_night" || data.priceType === "total";
+  }
+
   return false;
 }
 
@@ -267,6 +305,7 @@ function mergeCollectedDataIntoForm(baseForm: FormState, data: CollectedData): F
     adults: data.adults ?? baseForm.adults,
     currentBestPrice: data.currentBestPrice ?? baseForm.currentBestPrice,
     currency: data.currency ?? baseForm.currency,
+    priceType: data.priceType ?? baseForm.priceType,
   };
 }
 
@@ -367,16 +406,28 @@ function ChatSearchResultCard({ card }: { card: ChatResultCardData }) {
 
             <div className="grid gap-3 rounded-lg border border-slate-200/80 bg-slate-50/90 p-3 sm:grid-cols-2">
               <div>
-                <p className="text-xs text-muted-foreground">Your best price</p>
+                <p className="text-xs text-muted-foreground">
+                  Your price ({card.priceType === "per_night" ? "per night" : "total"})
+                </p>
                 <p className="text-base font-bold">
                   {card.currency} {card.userPrice}
                 </p>
+                {card.priceType === "per_night" && card.nights > 1 && card.comparison ? (
+                  <p className="text-xs text-muted-foreground">
+                    {card.currency} {card.comparison.userPriceTotal.toFixed(2)} total ({card.nights} nights)
+                  </p>
+                ) : null}
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Trivago best price</p>
+                <p className="text-xs text-muted-foreground">Trivago best price (total)</p>
                 <p className="text-base font-bold">
                   {bestDeal.price_per_stay || bestDeal.price_per_night || "N/A"}
                 </p>
+                {card.comparison && card.nights > 1 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {card.currency} {card.comparison.trivagoPricePerNight.toFixed(2)} per night
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -435,6 +486,7 @@ export function BeatThisPriceApp() {
     adults: 2,
     currentBestPrice: "",
     currency: "USD",
+    priceType: "per_night" as PriceType,
   });
 
   const [activeInputMode, setActiveInputMode] = useState<"ai" | "manual">("ai");
@@ -480,9 +532,14 @@ export function BeatThisPriceApp() {
     [collectedData]
   );
 
+  const nights = useMemo(
+    () => countNights(form.checkIn, form.checkOut),
+    [form.checkIn, form.checkOut]
+  );
+
   const comparison = useMemo(
-    () => buildPriceComparison(form.currentBestPrice, form.currency, result?.bestDeal ?? null),
-    [form.currentBestPrice, form.currency, result?.bestDeal]
+    () => buildPriceComparison(form.currentBestPrice, form.currency, result?.bestDeal ?? null, form.priceType, nights),
+    [form.currentBestPrice, form.currency, result?.bestDeal, form.priceType, nights]
   );
 
   const resultTone: "win" | "lose" | "neutral" = comparison
@@ -577,11 +634,15 @@ export function BeatThisPriceApp() {
         hotelName: checkPayload.bestDeal?.accommodation_name ?? firstSuggestion.location,
         userPrice: normalizedInput.currentBestPrice,
         currency: normalizedInput.currency,
+        priceType: normalizedInput.priceType,
+        nights: countNights(normalizedInput.checkIn, normalizedInput.checkOut),
         result: checkPayload,
         comparison: buildPriceComparison(
           normalizedInput.currentBestPrice,
           normalizedInput.currency,
-          checkPayload.bestDeal
+          checkPayload.bestDeal,
+          normalizedInput.priceType,
+          countNights(normalizedInput.checkIn, normalizedInput.checkOut)
         ),
       };
     } finally {

@@ -8,6 +8,8 @@ type ConversationMessage = {
   content?: string;
 };
 
+type PriceType = "per_night" | "total";
+
 type CollectedData = {
   hotelName?: string;
   destination?: string;
@@ -16,6 +18,7 @@ type CollectedData = {
   adults?: number;
   currentBestPrice?: string;
   currency?: SupportedCurrency;
+  priceType?: PriceType;
 };
 
 type AiParseRequest = {
@@ -50,6 +53,7 @@ const requiredFieldLabels: Record<keyof CollectedData, string> = {
   adults: "adults",
   currentBestPrice: "current best price",
   currency: "currency",
+  priceType: "price type (per night or total)",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -137,7 +141,22 @@ function sanitizeCollectedData(raw: unknown): CollectedData {
     adults: normalizeAdults(raw.adults),
     currentBestPrice: normalizePrice(raw.currentBestPrice),
     currency: normalizeCurrency(raw.currency),
+    priceType: normalizePriceType(raw.priceType),
   };
+}
+
+function normalizePriceType(value: unknown): PriceType | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "per_night" || normalized === "per night" || normalized === "nightly") {
+    return "per_night";
+  }
+  if (normalized === "total" || normalized === "total stay" || normalized === "full") {
+    return "total";
+  }
+  return undefined;
 }
 
 function sanitizeConversationHistory(raw: unknown): Anthropic.MessageParam[] {
@@ -236,6 +255,10 @@ function hasValue(data: CollectedData, key: keyof CollectedData): boolean {
     return Boolean(data.currency && supportedCurrencies.includes(data.currency));
   }
 
+  if (key === "priceType") {
+    return data.priceType === "per_night" || data.priceType === "total";
+  }
+
   return false;
 }
 
@@ -276,9 +299,10 @@ export async function POST(request: Request) {
 
     const systemPrompt =
       `You are a hotel price checking assistant. Extract booking details from user messages. ` +
-      `The required fields are: hotelName, destination, checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), adults (number), currentBestPrice (number as string), currency (USD/EUR/GBP/CHF/JPY/AUD/CAD). ` +
+      `The required fields are: hotelName, destination, checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), adults (number), currentBestPrice (number as string), currency (USD/EUR/GBP/CHF/JPY/AUD/CAD), priceType ("per_night" or "total"). ` +
+      `priceType indicates whether the user's price is per night or the total stay cost. Infer from context: "120 per night" or "120/night" or "120 a night" = per_night. "240 total" or "240 for the stay" = total. If they just say a price like "240 EUR" without specifying, ask whether that's per night or total. ` +
       `Today is ${today}. Respond with JSON: { extracted: { partial object of fields you found }, complete: boolean, message: friendly follow-up for the user }. ` +
-      `Merge newly extracted fields with the collectedData already provided. Only set complete=true when ALL 7 fields are present. ` +
+      `Merge newly extracted fields with the collectedData already provided. Only set complete=true when ALL 8 fields are present. ` +
       `If complete, say you are searching now. If not complete, ask for the missing fields. ` +
       `Use only the allowed fields in extracted. Return valid JSON only and no markdown.`;
 
