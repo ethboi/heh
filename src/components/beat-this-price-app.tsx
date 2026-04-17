@@ -926,16 +926,20 @@ export function BeatThisPriceApp() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                  {aiReadyForManualCheck ? (
+                  {isSearching || isChecking ? (
+                    <span className="flex items-center gap-1.5 font-medium text-indigo-600">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Searching trivago for the best price...
+                    </span>
+                  ) : aiReadyForManualCheck ? (
                     <span className="font-medium text-emerald-700">
-                      All required details captured. Searching trivago now...
+                      ✓ All details collected
                     </span>
                   ) : (
                     <span className="text-muted-foreground">
                       Still needed: {missingAiFields.map((field) => field.label).join(", ")}
                     </span>
                   )}
-
                 </div>
               </div>
             ) : null}
