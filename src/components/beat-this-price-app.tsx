@@ -1086,7 +1086,7 @@ export function BeatThisPriceApp() {
           ) : null}
         </Card>
 
-        {suggestions.length > 0 ? (
+        {activeInputMode === "manual" && suggestions.length > 0 ? (
           <Card
             size="sm"
             className="rounded-2xl border border-indigo-100/70 bg-card/92 shadow-[0_12px_35px_-24px_rgba(37,99,235,0.45)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_46px_-24px_rgba(37,99,235,0.52)]"
@@ -1148,7 +1148,7 @@ export function BeatThisPriceApp() {
           </Card>
         ) : null}
 
-        {result ? (
+        {activeInputMode === "manual" && result ? (
           <Card
             className={`rounded-2xl border backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 ${
               resultTone === "win"
