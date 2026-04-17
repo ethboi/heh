@@ -168,7 +168,7 @@ function buildPriceComparison(
     userPrice,
     trivagoPrice,
     difference: userPrice - trivagoPrice,
-    currencyMatches: !bestDeal.currency || bestDeal.currency === currency,
+    currencyMatches: !bestDeal.currency || bestDeal.currency.toUpperCase().includes(currency) || currency.includes(bestDeal.currency.toUpperCase()),
   };
 }
 
