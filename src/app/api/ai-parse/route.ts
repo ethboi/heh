@@ -314,9 +314,11 @@ export async function POST(request: Request) {
 
     const messageToUser = complete
       ? "Got it! Searching trivago now..."
-      : missing.length > 0
-        ? `Please share ${missing.join(", ")}.`
-        : parsed?.message ?? "Please share any missing booking details.";
+      : parsed?.message && parsed.message.trim().length > 0
+        ? parsed.message.trim()
+        : missing.length > 0
+          ? `I still need: ${missing.join(", ")}.`
+          : "Please share any missing booking details.";
 
     return NextResponse.json({
       extracted,
