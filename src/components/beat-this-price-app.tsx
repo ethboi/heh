@@ -931,14 +931,6 @@ export function BeatThisPriceApp() {
                     </span>
                   )}
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-indigo-200 bg-white/70 hover:bg-indigo-50"
-                    onClick={() => setActiveInputMode("manual")}
-                  >
-                    Open manual form
-                  </Button>
                 </div>
               </div>
             ) : null}
