@@ -895,7 +895,7 @@ export function BeatThisPriceApp() {
 
             {activeInputMode === "ai" ? (
               <div className="space-y-4 rounded-xl border border-indigo-100/80 bg-indigo-50/35 p-3">
-                <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-indigo-100/80 bg-white/80 p-3">
+                <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-lg border border-indigo-100/80 bg-white/80 p-3">
                   {chatMessages.map((chatMessage, index) => (
                     <div
                       key={`${chatMessage.role}-${index}`}
