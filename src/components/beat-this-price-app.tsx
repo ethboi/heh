@@ -779,7 +779,6 @@ export function BeatThisPriceApp() {
               </a>
             </div>
             <CardTitle className="flex items-center gap-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              <TrendingDown className="size-9 sm:size-10" />
               heh Trivago!, beat this price!
             </CardTitle>
             <CardDescription className="max-w-2xl text-base text-blue-100 sm:text-lg">
