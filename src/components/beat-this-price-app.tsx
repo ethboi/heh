@@ -9,7 +9,9 @@ import {
   ExternalLink,
   Hotel,
   Loader2,
+  MapPin,
   Search,
+  Star,
   TrendingDown,
   TrendingUp,
   Users,
@@ -284,81 +286,142 @@ function ChatSearchResultCard({ card }: { card: ChatResultCardData }) {
   const bestDeal = card.result.bestDeal;
 
   return (
-    <div className="space-y-3 rounded-xl border border-indigo-100/80 bg-white/90 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="bg-indigo-100 text-indigo-800">
-          {card.hotelName}
-        </Badge>
-        <Badge variant="outline" className="bg-white/80">
-          {bestDeal?.currency || card.currency}
-        </Badge>
-
-        {card.comparison ? (
-          card.comparison.difference > 0 ? (
-            <Badge className="bg-emerald-600 text-white">
-              <TrendingDown className="size-3" />
-              trivago is cheaper by {formatDelta(card.comparison.difference)}
-            </Badge>
-          ) : card.comparison.difference < 0 ? (
-            <Badge className="bg-rose-600 text-white">
-              <TrendingUp className="size-3" />
-              your deal is better by {formatDelta(card.comparison.difference)}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="bg-white/70">
-              same price as your deal
-            </Badge>
-          )
-        ) : null}
-      </div>
-
-      {bestDeal ? (
-        <>
-          <div className="grid gap-3 rounded-lg border border-slate-200/80 bg-slate-50/90 p-3 sm:grid-cols-2">
-            <div>
-              <p className="text-xs text-muted-foreground">Your best price</p>
-              <p className="text-sm font-semibold">
-                {card.currency} {card.userPrice}
+    <div className="overflow-hidden rounded-xl border border-indigo-100/80 bg-white/95 shadow-sm">
+      {bestDeal?.main_image ? (
+        <div className="relative h-40 w-full overflow-hidden bg-slate-100">
+          <img
+            src={bestDeal.main_image}
+            alt={card.hotelName}
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <div className="absolute bottom-2 left-3 right-3">
+            <h3 className="text-sm font-bold text-white drop-shadow">{card.hotelName}</h3>
+            {(bestDeal.address || bestDeal.country_city) ? (
+              <p className="flex items-center gap-1 text-xs text-white/90 drop-shadow">
+                <MapPin className="size-3" />
+                {bestDeal.address || bestDeal.country_city}
               </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Trivago best price</p>
-              <p className="text-sm font-semibold">
-                {bestDeal.price_per_stay || bestDeal.price_per_night || "Not available"}
-              </p>
-            </div>
+            ) : null}
           </div>
-
-          {!card.comparison?.currencyMatches ? (
-            <p className="text-xs text-amber-700">
-              Currency mismatch: trivago returned {bestDeal.currency || "N/A"} while your
-              price is {card.currency}.
+        </div>
+      ) : (
+        <div className="border-b border-slate-100 px-3 pt-3 pb-2">
+          <h3 className="text-sm font-bold text-slate-900">{card.hotelName}</h3>
+          {(bestDeal?.address || bestDeal?.country_city) ? (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPin className="size-3" />
+              {bestDeal.address || bestDeal.country_city}
             </p>
           ) : null}
-
-          {card.result.dealUrl ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="border-indigo-200 bg-white/80 hover:bg-indigo-50"
-              onClick={() =>
-                window.open(card.result.dealUrl ?? "", "_blank", "noopener,noreferrer")
-              }
-            >
-              <ExternalLink className="size-4" />
-              Open deal on trivago
-            </Button>
-          ) : null}
-        </>
-      ) : (
-        <Alert className="border-amber-200/70 bg-amber-50/90 text-amber-900">
-          <TrendingUp className="size-4" />
-          <AlertTitle>No available deal found</AlertTitle>
-          <AlertDescription className="text-amber-800/90">
-            Trivago returned no available rates for those details.
-          </AlertDescription>
-        </Alert>
+        </div>
       )}
+
+      <div className="space-y-3 p-3">
+        {bestDeal ? (
+          <>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {bestDeal.hotel_rating ? (
+                <Badge variant="outline" className="gap-0.5 bg-amber-50 text-amber-700">
+                  <Star className="size-3 fill-amber-400 text-amber-400" />
+                  {bestDeal.hotel_rating}
+                </Badge>
+              ) : null}
+              {bestDeal.review_rating ? (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                  {bestDeal.review_rating}
+                  {bestDeal.review_count ? ` (${bestDeal.review_count} reviews)` : ""}
+                </Badge>
+              ) : null}
+              <Badge variant="outline" className="bg-white/80">
+                {bestDeal.currency || card.currency}
+              </Badge>
+            </div>
+
+            {card.comparison ? (
+              <div
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold",
+                  card.comparison.difference > 0
+                    ? "bg-emerald-50 text-emerald-700"
+                    : card.comparison.difference < 0
+                      ? "bg-rose-50 text-rose-700"
+                      : "bg-slate-50 text-slate-700"
+                )}
+              >
+                {card.comparison.difference > 0 ? (
+                  <>
+                    <TrendingDown className="size-4" />
+                    trivago is cheaper by {card.currency} {formatDelta(card.comparison.difference)}
+                  </>
+                ) : card.comparison.difference < 0 ? (
+                  <>
+                    <TrendingUp className="size-4" />
+                    Your deal is better by {card.currency} {formatDelta(card.comparison.difference)}
+                  </>
+                ) : (
+                  <>Same price as your deal</>
+                )}
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 rounded-lg border border-slate-200/80 bg-slate-50/90 p-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Your best price</p>
+                <p className="text-base font-bold">
+                  {card.currency} {card.userPrice}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Trivago best price</p>
+                <p className="text-base font-bold">
+                  {bestDeal.price_per_stay || bestDeal.price_per_night || "N/A"}
+                </p>
+              </div>
+            </div>
+
+            {bestDeal.top_amenities ? (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium">Amenities:</span> {bestDeal.top_amenities}
+              </p>
+            ) : null}
+
+            {bestDeal.advertisers ? (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium">Via:</span> {bestDeal.advertisers}
+              </p>
+            ) : null}
+
+            {!card.comparison?.currencyMatches ? (
+              <p className="text-xs text-amber-700">
+                Currency mismatch: trivago returned {bestDeal.currency || "N/A"} while your
+                price is {card.currency}.
+              </p>
+            ) : null}
+
+            {card.result.dealUrl ? (
+              <Button
+                type="button"
+                className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white shadow-sm hover:from-blue-500 hover:via-indigo-500 hover:to-blue-500"
+                onClick={() =>
+                  window.open(card.result.dealUrl ?? "", "_blank", "noopener,noreferrer")
+                }
+              >
+                <ExternalLink className="size-4" />
+                View deal on trivago
+              </Button>
+            ) : null}
+          </>
+        ) : (
+          <Alert className="border-amber-200/70 bg-amber-50/90 text-amber-900">
+            <TrendingUp className="size-4" />
+            <AlertTitle>No available deal found</AlertTitle>
+            <AlertDescription className="text-amber-800/90">
+              Trivago returned no available rates for those details.
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
     </div>
   );
 }
