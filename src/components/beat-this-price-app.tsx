@@ -876,13 +876,13 @@ export function BeatThisPriceApp() {
                     value={chatInput}
                     onChange={(event) => setChatInput(event.target.value)}
                     placeholder="e.g. Hilton Berlin, May 1-3, 2 adults, I found it for 240 EUR"
-                    className="h-12 bg-white text-base"
+                    className="h-14 rounded-xl border-2 border-indigo-300 bg-white text-base shadow-md shadow-indigo-100 transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:shadow-lg focus:shadow-indigo-200/50 focus:ring-2 focus:ring-indigo-200"
                     disabled={isAiBusy}
                   />
                   <Button
                     type="submit"
                     disabled={isAiBusy || chatInput.trim().length === 0}
-                    className="h-12 shrink-0 bg-indigo-600 text-base text-white hover:bg-indigo-500"
+                    className="h-14 shrink-0 rounded-xl bg-indigo-600 px-6 text-base text-white shadow-md shadow-indigo-200 hover:bg-indigo-500 hover:shadow-lg"
                   >
                     {isSearching || isChecking
                       ? "Searching..."
