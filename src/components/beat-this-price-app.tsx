@@ -779,7 +779,7 @@ export function BeatThisPriceApp() {
               </a>
             </div>
             <CardTitle className="flex items-center gap-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              heh Trivago!, beat this price!
+              Heh! Trivago!, beat this price!
             </CardTitle>
             <CardDescription className="max-w-2xl text-base text-blue-100 sm:text-lg">
               Spot overpriced hotel deals in seconds. We compare your current
