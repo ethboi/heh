@@ -68,9 +68,25 @@ type CheckPriceResponse = {
 
 type ChatRole = "user" | "assistant";
 
+type PriceComparison = {
+  userPrice: number;
+  trivagoPrice: number;
+  difference: number;
+  currencyMatches: boolean;
+};
+
+type ChatResultCardData = {
+  hotelName: string;
+  userPrice: string;
+  currency: SupportedCurrency;
+  result: CheckPriceResponse;
+  comparison: PriceComparison | null;
+};
+
 type ChatMessage = {
   role: ChatRole;
   content: string;
+  resultCard?: ChatResultCardData;
 };
 
 type CollectedData = {
@@ -120,6 +136,78 @@ function dateOffset(days: number) {
 
 function formatDelta(value: number) {
   return Math.abs(value).toFixed(2);
+}
+
+function buildPriceComparison(
+  userPriceText: string,
+  currency: SupportedCurrency,
+  bestDeal: TrivagoAccommodation | null
+): PriceComparison | null {
+  if (!bestDeal) {
+    return null;
+  }
+
+  const userPrice = Number.parseFloat(userPriceText);
+  const trivagoPrice = parsePriceValue(bestDeal.price_per_stay ?? bestDeal.price_per_night);
+
+  if (!Number.isFinite(userPrice) || trivagoPrice === null) {
+    return null;
+  }
+
+  return {
+    userPrice,
+    trivagoPrice,
+    difference: userPrice - trivagoPrice,
+    currencyMatches: !bestDeal.currency || bestDeal.currency === currency,
+  };
+}
+
+type SearchInput = {
+  hotelName: string;
+  destination: string;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  currentBestPrice: string;
+  currency: SupportedCurrency;
+};
+
+function normalizeSearchInput(data: CollectedData): SearchInput | null {
+  const hotelName = data.hotelName?.trim() ?? "";
+  const destination = data.destination?.trim() ?? "";
+  const checkIn = data.checkIn?.trim() ?? "";
+  const checkOut = data.checkOut?.trim() ?? "";
+  const adults = Number(data.adults);
+  const currentBestPrice = (data.currentBestPrice ?? "").trim();
+  const currency = data.currency;
+
+  const parsedPrice = Number.parseFloat(currentBestPrice);
+
+  if (
+    !hotelName ||
+    !destination ||
+    !isoDatePattern.test(checkIn) ||
+    !isoDatePattern.test(checkOut) ||
+    checkOut <= checkIn ||
+    !Number.isFinite(adults) ||
+    adults < 1 ||
+    !Number.isFinite(parsedPrice) ||
+    parsedPrice <= 0 ||
+    !currency ||
+    !currencies.includes(currency)
+  ) {
+    return null;
+  }
+
+  return {
+    hotelName,
+    destination,
+    checkIn,
+    checkOut,
+    adults,
+    currentBestPrice,
+    currency,
+  };
 }
 
 function hasCollectedField(data: CollectedData, key: keyof CollectedData): boolean {
@@ -181,6 +269,89 @@ function formatCollectedValue(key: keyof CollectedData, value: CollectedData[key
   return String(value);
 }
 
+function ChatSearchResultCard({ card }: { card: ChatResultCardData }) {
+  const bestDeal = card.result.bestDeal;
+
+  return (
+    <div className="space-y-3 rounded-xl border border-indigo-100/80 bg-white/90 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary" className="bg-indigo-100 text-indigo-800">
+          {card.hotelName}
+        </Badge>
+        <Badge variant="outline" className="bg-white/80">
+          {bestDeal?.currency || card.currency}
+        </Badge>
+
+        {card.comparison ? (
+          card.comparison.difference > 0 ? (
+            <Badge className="bg-emerald-600 text-white">
+              <TrendingDown className="size-3" />
+              trivago is cheaper by {formatDelta(card.comparison.difference)}
+            </Badge>
+          ) : card.comparison.difference < 0 ? (
+            <Badge className="bg-rose-600 text-white">
+              <TrendingUp className="size-3" />
+              your deal is better by {formatDelta(card.comparison.difference)}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-white/70">
+              same price as your deal
+            </Badge>
+          )
+        ) : null}
+      </div>
+
+      {bestDeal ? (
+        <>
+          <div className="grid gap-3 rounded-lg border border-slate-200/80 bg-slate-50/90 p-3 sm:grid-cols-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Your best price</p>
+              <p className="text-sm font-semibold">
+                {card.currency} {card.userPrice}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Trivago best price</p>
+              <p className="text-sm font-semibold">
+                {bestDeal.price_per_stay || bestDeal.price_per_night || "Not available"}
+              </p>
+            </div>
+          </div>
+
+          {!card.comparison?.currencyMatches ? (
+            <p className="text-xs text-amber-700">
+              Currency mismatch: trivago returned {bestDeal.currency || "N/A"} while your
+              price is {card.currency}.
+            </p>
+          ) : null}
+
+          {card.result.dealUrl ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="border-indigo-200 bg-white/80 hover:bg-indigo-50"
+              onClick={() =>
+                window.open(card.result.dealUrl ?? "", "_blank", "noopener,noreferrer")
+              }
+            >
+              <ExternalLink className="size-4" />
+              Open deal on trivago
+            </Button>
+          ) : null}
+        </>
+      ) : (
+        <Alert className="border-amber-200/70 bg-amber-50/90 text-amber-900">
+          <TrendingUp className="size-4" />
+          <AlertTitle>No available deal found</AlertTitle>
+          <AlertDescription className="text-amber-800/90">
+            Trivago returned no available rates for those details.
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
+  );
+}
+
 export function BeatThisPriceApp() {
   const [form, setForm] = useState<FormState>({
     hotelName: "",
@@ -235,30 +406,10 @@ export function BeatThisPriceApp() {
     [collectedData]
   );
 
-  const comparison = useMemo(() => {
-    if (!result?.bestDeal) {
-      return null;
-    }
-
-    const userPrice = Number.parseFloat(form.currentBestPrice);
-    const trivagoPrice = parsePriceValue(
-      result.bestDeal.price_per_stay ?? result.bestDeal.price_per_night
-    );
-
-    if (!Number.isFinite(userPrice) || trivagoPrice === null) {
-      return null;
-    }
-
-    const currencyMatches =
-      !result.bestDeal.currency || result.bestDeal.currency === form.currency;
-
-    return {
-      userPrice,
-      trivagoPrice,
-      difference: userPrice - trivagoPrice,
-      currencyMatches,
-    };
-  }, [form.currentBestPrice, form.currency, result]);
+  const comparison = useMemo(
+    () => buildPriceComparison(form.currentBestPrice, form.currency, result?.bestDeal ?? null),
+    [form.currentBestPrice, form.currency, result?.bestDeal]
+  );
 
   const resultTone: "win" | "lose" | "neutral" = comparison
     ? comparison.difference > 0
@@ -267,6 +418,8 @@ export function BeatThisPriceApp() {
         ? "lose"
         : "neutral"
     : "neutral";
+
+  const isAiBusy = isAiParsing || isSearching || isChecking;
 
   function updateForm<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -283,6 +436,91 @@ export function BeatThisPriceApp() {
       currentBestPrice: data.currentBestPrice ?? prev.currentBestPrice,
       currency: data.currency ?? prev.currency,
     }));
+  }
+
+  async function runSearchFromChat(data: CollectedData): Promise<ChatResultCardData> {
+    const normalizedInput = normalizeSearchInput(data);
+
+    if (!normalizedInput) {
+      throw new Error(
+        "I still need complete, valid booking details before I can search trivago."
+      );
+    }
+
+    setError("");
+    setResult(null);
+    setSuggestions([]);
+    setSelectedSuggestionId("");
+    setIsSearching(true);
+    setIsChecking(false);
+
+    try {
+      const searchResponse = await fetch("/api/search-hotel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hotelName: normalizedInput.hotelName,
+          destination: normalizedInput.destination,
+        }),
+      });
+
+      const searchPayload = (await searchResponse.json()) as SearchHotelResponse;
+
+      if (!searchResponse.ok) {
+        throw new Error(searchPayload.error ?? "Unable to search for hotel suggestions.");
+      }
+
+      if (!searchPayload.suggestions?.length) {
+        throw new Error("No matching hotels were found on trivago.");
+      }
+
+      setSuggestions(searchPayload.suggestions);
+      const firstSuggestion = searchPayload.suggestions[0];
+      setSelectedSuggestionId(String(firstSuggestion.id));
+      setSelectedNs(firstSuggestion.ns);
+
+      setIsChecking(true);
+
+      const checkResponse = await fetch("/api/check-price", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accommodationId: firstSuggestion.id,
+          ns: firstSuggestion.ns,
+          checkIn: normalizedInput.checkIn,
+          checkOut: normalizedInput.checkOut,
+          adults: normalizedInput.adults,
+          currency: normalizedInput.currency,
+        }),
+      });
+
+      const checkPayload = (await checkResponse.json()) as CheckPriceResponse;
+
+      if (!checkResponse.ok) {
+        throw new Error(checkPayload.error ?? "Unable to check trivago prices.");
+      }
+
+      setResult(checkPayload);
+
+      return {
+        hotelName: checkPayload.bestDeal?.accommodation_name ?? firstSuggestion.location,
+        userPrice: normalizedInput.currentBestPrice,
+        currency: normalizedInput.currency,
+        result: checkPayload,
+        comparison: buildPriceComparison(
+          normalizedInput.currentBestPrice,
+          normalizedInput.currency,
+          checkPayload.bestDeal
+        ),
+      };
+    } finally {
+      setIsSearching(false);
+      setIsChecking(false);
+    }
   }
 
   async function runPriceCheck(accommodationId?: number, ns?: number) {
@@ -400,7 +638,7 @@ export function BeatThisPriceApp() {
 
     const message = chatInput.trim();
 
-    if (!message || isAiParsing) {
+    if (!message || isAiParsing || isSearching || isChecking) {
       return;
     }
 
@@ -450,13 +688,44 @@ export function BeatThisPriceApp() {
           ? payload.message.trim()
           : "Thanks. Share any missing details and I’ll keep filling the form.";
 
+      const shouldRunSearch = Boolean(payload.complete);
+      const completionMessages: ChatMessage[] = shouldRunSearch
+        ? [{ role: "assistant", content: "Got it! Searching trivago now..." }]
+        : [];
+
       setChatMessages((prev) => [
         ...prev,
         { role: "assistant", content: assistantMessage },
+        ...completionMessages,
       ]);
 
-      if (Boolean(payload.complete)) {
-        setActiveInputMode("manual");
+      if (shouldRunSearch) {
+        try {
+          const searchResult = await runSearchFromChat(mergedData);
+
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: "Here are the latest trivago results:",
+              resultCard: searchResult,
+            },
+          ]);
+        } catch (searchError) {
+          const searchMessage =
+            searchError instanceof Error
+              ? searchError.message
+              : "Unable to search trivago right now.";
+
+          setError(searchMessage);
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `I captured your details, but I couldn't finish the trivago search: ${searchMessage}`,
+            },
+          ]);
+        }
       }
     } catch (chatError) {
       const message =
@@ -560,21 +829,32 @@ export function BeatThisPriceApp() {
                     >
                       <div
                         className={cn(
-                          "max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm",
+                          "max-w-[92%] rounded-2xl text-sm shadow-sm",
                           chatMessage.role === "user"
-                            ? "rounded-br-md bg-indigo-600 text-white"
-                            : "rounded-bl-md bg-slate-100 text-slate-900"
+                            ? "rounded-br-md bg-indigo-600 px-3 py-2 text-white"
+                            : chatMessage.resultCard
+                              ? "rounded-bl-md bg-slate-100 p-3 text-slate-900"
+                              : "rounded-bl-md bg-slate-100 px-3 py-2 text-slate-900"
                         )}
                       >
-                        {chatMessage.content}
+                        {chatMessage.resultCard ? (
+                          <div className="space-y-2">
+                            {chatMessage.content ? <p>{chatMessage.content}</p> : null}
+                            <ChatSearchResultCard card={chatMessage.resultCard} />
+                          </div>
+                        ) : (
+                          chatMessage.content
+                        )}
                       </div>
                     </div>
                   ))}
 
-                  {isAiParsing ? (
+                  {isAiBusy ? (
                     <div className="flex justify-start">
                       <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-slate-100 px-3 py-2 text-sm text-slate-700 shadow-sm">
-                        Parsing details...
+                        {isSearching || isChecking
+                          ? "Searching trivago..."
+                          : "Parsing details..."}
                       </div>
                     </div>
                   ) : null}
@@ -586,14 +866,18 @@ export function BeatThisPriceApp() {
                     onChange={(event) => setChatInput(event.target.value)}
                     placeholder="e.g. Hilton Berlin, May 1-3, 2 adults, I found it for 240 EUR"
                     className="bg-white"
-                    disabled={isAiParsing}
+                    disabled={isAiBusy}
                   />
                   <Button
                     type="submit"
-                    disabled={isAiParsing || chatInput.trim().length === 0}
+                    disabled={isAiBusy || chatInput.trim().length === 0}
                     className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500"
                   >
-                    {isAiParsing ? "Parsing..." : "Send"}
+                    {isSearching || isChecking
+                      ? "Searching..."
+                      : isAiParsing
+                        ? "Parsing..."
+                        : "Send"}
                   </Button>
                 </form>
 
