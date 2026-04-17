@@ -613,6 +613,9 @@ export function BeatThisPriceApp() {
         ) : null}
 
 
+        <footer className="pb-2 text-center text-xs text-muted-foreground">
+          Powered by <span className="font-semibold text-indigo-700">trivago</span>
+        </footer>
       </div>
     </div>
   );
