@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import {
   Calendar,
+  CheckCircle2,
+  Circle,
   DollarSign,
   ExternalLink,
   Hotel,
@@ -90,6 +92,11 @@ type AiParseResponse = {
   error?: string;
 };
 
+type PriceCheckFormInput = Pick<
+  FormState,
+  "checkIn" | "checkOut" | "adults" | "currency"
+>;
+
 const currencies: SupportedCurrency[] = [
   "USD",
   "EUR",
@@ -156,17 +163,20 @@ function hasCollectedField(data: CollectedData, key: keyof CollectedData): boole
 }
 
 function isCollectedDataComplete(data: CollectedData): boolean {
-  const allFieldsPresent = requiredAiFields.every(({ key }) => hasCollectedField(data, key));
+  return requiredAiFields.every(({ key }) => hasCollectedField(data, key));
+}
 
-  if (!allFieldsPresent) {
-    return false;
-  }
-
-  if (!data.checkIn || !data.checkOut) {
-    return false;
-  }
-
-  return data.checkOut > data.checkIn;
+function mergeCollectedDataIntoForm(baseForm: FormState, data: CollectedData): FormState {
+  return {
+    ...baseForm,
+    hotelName: data.hotelName ?? baseForm.hotelName,
+    destination: data.destination ?? baseForm.destination,
+    checkIn: data.checkIn ?? baseForm.checkIn,
+    checkOut: data.checkOut ?? baseForm.checkOut,
+    adults: data.adults ?? baseForm.adults,
+    currentBestPrice: data.currentBestPrice ?? baseForm.currentBestPrice,
+    currency: data.currency ?? baseForm.currency,
+  };
 }
 
 function formatCollectedValue(key: keyof CollectedData, value: CollectedData[keyof CollectedData]) {
@@ -202,7 +212,7 @@ export function BeatThisPriceApp() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [collectedData, setCollectedData] = useState<CollectedData>({});
-  const [isAiParsing, setIsAiParsing] = useState(false);
+  const [isChatting, setIsChatting] = useState(false);
 
   const [suggestions, setSuggestions] = useState<HotelSuggestion[]>([]);
   const [selectedSuggestionId, setSelectedSuggestionId] = useState<string>("");
@@ -272,26 +282,25 @@ export function BeatThisPriceApp() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function applyCollectedDataToForm(data: CollectedData) {
-    setForm((prev) => ({
-      ...prev,
-      hotelName: data.hotelName ?? prev.hotelName,
-      destination: data.destination ?? prev.destination,
-      checkIn: data.checkIn ?? prev.checkIn,
-      checkOut: data.checkOut ?? prev.checkOut,
-      adults: data.adults ?? prev.adults,
-      currentBestPrice: data.currentBestPrice ?? prev.currentBestPrice,
-      currency: data.currency ?? prev.currency,
-    }));
+  function applyCollectedDataToForm(data: CollectedData, baseForm?: FormState) {
+    const nextForm = mergeCollectedDataIntoForm(baseForm ?? form, data);
+    setForm(nextForm);
+    return nextForm;
   }
 
-  async function runPriceCheck(accommodationId?: number, ns?: number) {
+  async function runPriceCheck(
+    accommodationId?: number,
+    ns?: number,
+    formInput?: PriceCheckFormInput
+  ) {
     const id = accommodationId ?? Number.parseInt(selectedSuggestionId, 10);
 
     if (!Number.isFinite(id)) {
       setError("Pick a hotel suggestion first.");
       return;
     }
+
+    const requestData = formInput ?? form;
 
     setError("");
     setIsChecking(true);
@@ -305,10 +314,10 @@ export function BeatThisPriceApp() {
         body: JSON.stringify({
           accommodationId: id,
           ns: ns ?? selectedNs,
-          checkIn: form.checkIn,
-          checkOut: form.checkOut,
-          adults: Number(form.adults),
-          currency: form.currency,
+          checkIn: requestData.checkIn,
+          checkOut: requestData.checkOut,
+          adults: Number(requestData.adults),
+          currency: requestData.currency,
         }),
       });
 
@@ -326,27 +335,29 @@ export function BeatThisPriceApp() {
     }
   }
 
-  async function submitCurrentForm() {
+  async function submitCurrentForm(formOverride?: FormState) {
+    const activeForm = formOverride ?? form;
+
     setError("");
     setResult(null);
     setSuggestions([]);
 
-    if (!form.hotelName.trim() || !form.destination.trim()) {
+    if (!activeForm.hotelName.trim() || !activeForm.destination.trim()) {
       setError("Hotel name and destination are required.");
       return;
     }
 
-    if (form.checkOut <= form.checkIn) {
+    if (activeForm.checkOut <= activeForm.checkIn) {
       setError("Check-out must be after check-in.");
       return;
     }
 
-    if (Number(form.adults) < 1) {
+    if (Number(activeForm.adults) < 1) {
       setError("At least 1 adult is required.");
       return;
     }
 
-    const userPrice = Number.parseFloat(form.currentBestPrice);
+    const userPrice = Number.parseFloat(activeForm.currentBestPrice);
 
     if (!Number.isFinite(userPrice) || userPrice <= 0) {
       setError("Enter a valid current best price.");
@@ -362,8 +373,8 @@ export function BeatThisPriceApp() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          hotelName: form.hotelName,
-          destination: form.destination,
+          hotelName: activeForm.hotelName,
+          destination: activeForm.destination,
         }),
       });
 
@@ -382,7 +393,7 @@ export function BeatThisPriceApp() {
       setSelectedSuggestionId(String(firstMatch.id));
       setSelectedNs(firstMatch.ns);
 
-      await runPriceCheck(firstMatch.id, firstMatch.ns);
+      await runPriceCheck(firstMatch.id, firstMatch.ns, activeForm);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Search failed.");
     } finally {
@@ -400,7 +411,7 @@ export function BeatThisPriceApp() {
 
     const message = chatInput.trim();
 
-    if (!message || isAiParsing) {
+    if (!message || isChatting || isSearching || isChecking) {
       return;
     }
 
@@ -408,10 +419,11 @@ export function BeatThisPriceApp() {
 
     const historySnapshot = chatMessages;
     const collectedSnapshot = collectedData;
+    const formSnapshot = form;
 
     setChatInput("");
     setChatMessages((prev) => [...prev, { role: "user", content: message }]);
-    setIsAiParsing(true);
+    setIsChatting(true);
 
     try {
       const response = await fetch("/api/ai-parse", {
@@ -443,20 +455,25 @@ export function BeatThisPriceApp() {
 
       const mergedData = { ...collectedSnapshot, ...extracted };
       setCollectedData(mergedData);
-      applyCollectedDataToForm(mergedData);
+
+      const nextForm = applyCollectedDataToForm(mergedData, formSnapshot);
+      const complete = Boolean(payload.complete) && isCollectedDataComplete(mergedData);
 
       const assistantMessage =
         typeof payload.message === "string" && payload.message.trim().length > 0
           ? payload.message.trim()
-          : "Thanks. Share any missing details and I’ll keep filling the form.";
+          : complete
+            ? "Got it! Searching trivago now..."
+            : "Tell me the missing details and I’ll keep filling the form.";
 
       setChatMessages((prev) => [
         ...prev,
         { role: "assistant", content: assistantMessage },
       ]);
 
-      if (Boolean(payload.complete)) {
+      if (complete) {
         setActiveInputMode("manual");
+        await submitCurrentForm(nextForm);
       }
     } catch (chatError) {
       const message =
@@ -472,7 +489,7 @@ export function BeatThisPriceApp() {
         },
       ]);
     } finally {
-      setIsAiParsing(false);
+      setIsChatting(false);
     }
   }
 
@@ -571,10 +588,10 @@ export function BeatThisPriceApp() {
                     </div>
                   ))}
 
-                  {isAiParsing ? (
+                  {isChatting ? (
                     <div className="flex justify-start">
                       <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-slate-100 px-3 py-2 text-sm text-slate-700 shadow-sm">
-                        Parsing details...
+                        Thinking...
                       </div>
                     </div>
                   ) : null}
@@ -586,58 +603,70 @@ export function BeatThisPriceApp() {
                     onChange={(event) => setChatInput(event.target.value)}
                     placeholder="e.g. Hilton Berlin, May 1-3, 2 adults, I found it for 240 EUR"
                     className="bg-white"
-                    disabled={isAiParsing}
+                    disabled={isChatting || isSearching || isChecking}
                   />
                   <Button
                     type="submit"
-                    disabled={isAiParsing || chatInput.trim().length === 0}
+                    disabled={
+                      isChatting ||
+                      isSearching ||
+                      isChecking ||
+                      chatInput.trim().length === 0
+                    }
                     className="shrink-0 bg-indigo-600 text-white hover:bg-indigo-500"
                   >
-                    {isAiParsing ? "Parsing..." : "Send"}
+                    {isChatting ? "Thinking..." : "Send"}
                   </Button>
                 </form>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {requiredAiFields.map(({ key, label }) => {
                     const fieldValue = collectedData[key];
                     const isMissing = missingFieldSet.has(key);
 
                     return (
-                      <Badge
+                      <div
                         key={key}
-                        variant={isMissing ? "outline" : "secondary"}
                         className={cn(
+                          "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs",
                           isMissing
-                            ? "border-indigo-200 bg-white/70 text-indigo-700"
-                            : "bg-emerald-100 text-emerald-800"
+                            ? "border-slate-200 bg-slate-100/80 text-slate-500"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-800"
                         )}
                       >
-                        {label}: {formatCollectedValue(key, fieldValue)}
-                      </Badge>
+                        {isMissing ? (
+                          <Circle className="size-3.5" />
+                        ) : (
+                          <CheckCircle2 className="size-3.5" />
+                        )}
+                        <span className="font-medium">{label}:</span>
+                        <span className="truncate">
+                          {formatCollectedValue(key, fieldValue)}
+                        </span>
+                      </div>
                     );
                   })}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
                   {aiReadyForManualCheck ? (
-                    <>
-                      <Badge className="bg-emerald-600 text-white">
-                        All required details captured
-                      </Badge>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="border-indigo-200 bg-white/70 hover:bg-indigo-50"
-                        onClick={() => setActiveInputMode("manual")}
-                      >
-                        Review manual form
-                      </Button>
-                    </>
+                    <span className="font-medium text-emerald-700">
+                      All required details captured. Searching trivago now...
+                    </span>
                   ) : (
-                    <span>
+                    <span className="text-muted-foreground">
                       Still needed: {missingAiFields.map((field) => field.label).join(", ")}
                     </span>
                   )}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-indigo-200 bg-white/70 hover:bg-indigo-50"
+                    onClick={() => setActiveInputMode("manual")}
+                  >
+                    Open manual form
+                  </Button>
                 </div>
               </div>
             ) : null}

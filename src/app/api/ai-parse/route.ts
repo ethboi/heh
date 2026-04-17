@@ -241,30 +241,15 @@ function hasValue(data: CollectedData, key: keyof CollectedData): boolean {
 
 function isComplete(data: CollectedData): boolean {
   const requiredKeys = Object.keys(requiredFieldLabels) as Array<keyof CollectedData>;
-
-  if (!requiredKeys.every((key) => hasValue(data, key))) {
-    return false;
-  }
-
-  if (!data.checkIn || !data.checkOut) {
-    return false;
-  }
-
-  return data.checkOut > data.checkIn;
+  return requiredKeys.every((key) => hasValue(data, key));
 }
 
 function missingFields(data: CollectedData): string[] {
   const requiredKeys = Object.keys(requiredFieldLabels) as Array<keyof CollectedData>;
 
-  const missing = requiredKeys
+  return requiredKeys
     .filter((key) => !hasValue(data, key))
     .map((key) => requiredFieldLabels[key]);
-
-  if (data.checkIn && data.checkOut && data.checkOut <= data.checkIn) {
-    missing.push("a check-out date after check-in");
-  }
-
-  return missing;
 }
 
 export async function POST(request: Request) {
@@ -293,6 +278,8 @@ export async function POST(request: Request) {
       `You are a hotel price checking assistant. Extract booking details from user messages. ` +
       `The required fields are: hotelName, destination, checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), adults (number), currentBestPrice (number as string), currency (USD/EUR/GBP/CHF/JPY/AUD/CAD). ` +
       `Today is ${today}. Respond with JSON: { extracted: { partial object of fields you found }, complete: boolean, message: friendly follow-up for the user }. ` +
+      `Merge newly extracted fields with the collectedData already provided. Only set complete=true when ALL 7 fields are present. ` +
+      `If complete, say you are searching now. If not complete, ask for the missing fields. ` +
       `Use only the allowed fields in extracted. Return valid JSON only and no markdown.`;
 
     const anthropic = new Anthropic({ apiKey });
@@ -325,16 +312,16 @@ export async function POST(request: Request) {
 
     const missing = missingFields(mergedData);
 
-    const fallbackMessage = complete
-      ? "Perfect — I have everything needed. You can run the price check now."
+    const messageToUser = complete
+      ? "Got it! Searching trivago now..."
       : missing.length > 0
-        ? `Thanks! I still need ${missing.join(", ")}.`
-        : "Thanks! Please confirm your stay details so I can finish.";
+        ? `Please share ${missing.join(", ")}.`
+        : parsed?.message ?? "Please share any missing booking details.";
 
     return NextResponse.json({
       extracted,
       complete,
-      message: parsed?.message ?? fallbackMessage,
+      message: messageToUser,
     });
   } catch (error) {
     const message =
