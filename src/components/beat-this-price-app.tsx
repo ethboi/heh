@@ -698,14 +698,15 @@ export function BeatThisPriceApp() {
           : "Thanks. Share any missing details and I’ll keep filling the form.";
 
       const shouldRunSearch = Boolean(payload.complete);
-      const completionMessages: ChatMessage[] = shouldRunSearch
-        ? [{ role: "assistant", content: "Got it! Searching trivago now..." }]
-        : [];
 
       setChatMessages((prev) => [
         ...prev,
-        { role: "assistant", content: assistantMessage },
-        ...completionMessages,
+        {
+          role: "assistant",
+          content: shouldRunSearch
+            ? "Got it! Searching trivago now..."
+            : assistantMessage,
+        },
       ]);
 
       if (shouldRunSearch) {
