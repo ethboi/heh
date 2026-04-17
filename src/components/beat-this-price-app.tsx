@@ -258,9 +258,20 @@ export function BeatThisPriceApp() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 sm:px-6">
         <Card className="border-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white shadow-2xl shadow-indigo-900/35 ring-0">
           <CardHeader className="space-y-3 py-5 sm:py-6">
-            <Badge className="w-fit border border-white/30 bg-white/15 text-white">
-              Smart hotel rate challenger
-            </Badge>
+            <div className="flex items-start justify-between">
+              <Badge className="w-fit border border-white/30 bg-white/15 text-white">
+                Smart hotel rate challenger
+              </Badge>
+              <a
+                href="https://www.trivago.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+              >
+                Powered by <span className="font-bold">trivago</span>
+                <ExternalLink className="size-3.5" />
+              </a>
+            </div>
             <CardTitle className="flex items-center gap-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
               <TrendingDown className="size-9 sm:size-10" />
               Beat This Price
@@ -601,9 +612,7 @@ export function BeatThisPriceApp() {
           </Card>
         ) : null}
 
-        <footer className="pb-2 text-center text-xs text-muted-foreground">
-          Powered by <span className="font-semibold text-indigo-700">trivago</span>
-        </footer>
+
       </div>
     </div>
   );
