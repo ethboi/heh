@@ -444,10 +444,13 @@ function ChatSearchResultCard({ card }: { card: ChatResultCardData }) {
             ) : null}
 
             {!card.comparison?.currencyMatches ? (
-              <p className="text-xs text-amber-700">
-                Currency mismatch: trivago returned {bestDeal.currency || "N/A"} while your
-                price is {card.currency}.
-              </p>
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                <span className="shrink-0 font-semibold">⚠ Currency note:</span>
+                <span>
+                  Trivago returned prices in {bestDeal.currency || "N/A"} but yours is in {card.currency}.
+                  Try entering your price in {bestDeal.currency || "the hotel's local currency"} for an accurate comparison.
+                </span>
+              </div>
             ) : null}
 
             {card.result.dealUrl ? (
@@ -1345,10 +1348,10 @@ export function BeatThisPriceApp() {
                   {!comparison?.currencyMatches ? (
                     <Alert className="border-amber-200/70 bg-amber-50/90 text-amber-900">
                       <TrendingUp className="size-4" />
-                      <AlertTitle>Currency mismatch</AlertTitle>
+                      <AlertTitle>Currency note</AlertTitle>
                       <AlertDescription className="text-amber-800/90">
-                        Trivago returned {result.bestDeal.currency}. Compare manually
-                        against your {form.currency} price.
+                        Trivago returned prices in {result.bestDeal.currency} but yours is in {form.currency}.
+                        Try entering your price in {result.bestDeal.currency} for an accurate comparison.
                       </AlertDescription>
                     </Alert>
                   ) : null}
