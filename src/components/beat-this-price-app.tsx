@@ -899,14 +899,14 @@ export function BeatThisPriceApp() {
         <Card className="border-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white shadow-2xl shadow-indigo-900/35 ring-0">
           <CardHeader className="space-y-3 py-5 sm:py-6">
             <div className="flex items-start justify-between">
-              <Badge className="w-fit border border-white/30 bg-white/15 text-white">
+              <Badge className="w-fit border border-white/30 bg-white/15 text-[10px] sm:text-sm text-white">
                 Smart hotel rate challenger
               </Badge>
               <a
                 href="https://www.trivago.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-white px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
               >
                 Powered by <TrivagoLogo className="inline-block" />
               </a>
@@ -1397,7 +1397,7 @@ export function BeatThisPriceApp() {
           </Card>
         ) : null}
 
-        <footer className="pb-2 text-center text-xs text-muted-foreground">
+        <footer className="pb-2 text-center text-[10px] sm:text-xs text-muted-foreground">
           Powered by <TrivagoLogo className="inline-block align-middle" />
         </footer>
       </div>
